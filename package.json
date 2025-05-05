@@ -1,0 +1,29 @@
+{
+  "name": "tweeter",
+  "version": "1.0.0",
+  "description": "ok we are going to make tweeter",
+  "main": "main.js",
+  "type": "module",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/codeJester27/tweeter.git"
+  },
+  "keywords": [
+    "tweeter"
+  ],
+  "author": "codeJester27, lukewhite225, jonathanfreeman301",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/codeJester27/tweeter/issues"
+  },
+  "homepage": "https://github.com/codeJester27/tweeter#readme",
+  "dependencies": {
+    "cookie-parser": "^1.4.7",
+    "ejs": "^3.1.10",
+    "express": "^5.1.0",
+    "mongodb": "^6.16.0"
+  }
+}

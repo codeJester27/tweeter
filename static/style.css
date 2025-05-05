@@ -1,0 +1,6 @@
+body > .errorMessage {
+    margin: 1rem;
+    padding: 1rem;
+    border: 1px solid red;
+    background-color: tomato;
+}

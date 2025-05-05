@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>tweeter</title>
+  </head>
+  <body>
+    <div class="errorMessage">
+      <div>
+        <strong
+          ><%=userFacing ? errorMessage : "An unexpected error has occured!"
+          %></strong
+        >
+      </div>
+      <button type="button" onclick="history.back()">Go Back</button>
+      <% if (!userFacing) { %>
+      <details>
+        <summary>Error Details</summary>
+        <code><%= errorMessage %></code>
+      </details>
+      <% } %>
+    </div>
+  </body>
+</html>
