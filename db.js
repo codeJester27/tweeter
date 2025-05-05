@@ -132,7 +132,6 @@ export class AuthManager {
    */
   async login(username, password) {
     const passwordHash = AuthManager.#pwhash(password);
-    console.log(passwordHash);
 
     const db = new DatabaseConnection();
     const user = await db.findUser({ username, passwordHash });
