@@ -3,7 +3,7 @@ import { AuthManager, DatabaseConnection, UserFacingError } from "./db.js";
 import cookieParser from "cookie-parser";
 
 const app = express();
-const port = 3000;
+const port = process.env.PORT || 3000;
 app.listen(port);
 console.log("Server started at http://localhost:" + port);
 
