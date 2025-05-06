@@ -5,5 +5,14 @@
         <li><a href="/all">all</a></li>
         <li><a href="/createTopic">create</a></li>
     </ul>
-    <div class="auth-section"><% if (locals.user) { %> Welcome <%= user.username %> <a onclick=""></a><% } %></div>
+    <script>
+        function logout() {
+            fetch("/logout", {
+                method: "POST",
+            }).then(() => {
+                location.reload();
+            }).catch(alert);
+        }
+    </script>
+    <div class="auth-section"><% if (locals.user) { %> Welcome <%= user.username %> <a href="javascript:logout()">Logout</a><% } %></div>
 </header>

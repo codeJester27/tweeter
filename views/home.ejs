@@ -1,4 +1,4 @@
- <!--
+<!--
 topics parameter
 {
  title: string;
@@ -15,21 +15,38 @@ topics parameter
 
 <!DOCTYPE html>
 <html lang="en">
-    <head><%- include('head') %></head>
-  <body>
-    <%- include('header') %>
-    <main>
-        <% topics.forEach(topic => { %>
-        <fieldset id="post-<%= topic._id %>">
-          <legend class ="topic-name"><%= topic.title %></legend>
-          <div class="topic-timestamp">Last Bump: <%= topic.lastBump %></div>
-          <div class="access-count">Access Count: <%= topic.accessCount %></div>
-          <a href="/topic/<%= topic._id %>">Go to topic</a>
-        </fieldset>
-        <% }) %>
-    </main>
-
-
-    
-  </body>
+    <head>
+        <%- include('head') %>
+    </head>
+    <body>
+        <%- include('header') %>
+        <main>
+            <% if (!topics.length) { %>
+            <p>No subscribed topics :(</p>
+            <% } %> <% topics.forEach(topic => { %>
+            <fieldset id="post-<%= topic._id %>">
+                <legend class="topic-name"><%= topic.title %></legend>
+                <div class="topic-timestamp">
+                    Last Bump: <%= intl.format(topic.lastBump) %>
+                </div>
+                <div class="access-count">
+                    Access Count: <%= topic.accessCount %>
+                </div>
+                <a href="/topic/<%= topic._id %>">Go to topic</a>
+                <% if(locals.showPosts) { %>
+                  <hr />
+                  Recent Posts
+                <% topic.posts.toSorted((a, b) => a.created - b.created).slice(-2).forEach(post => { %>
+                <fieldset>
+                    <legend>
+                        <%= topic.users.find(x =>
+                        x._id.equals(post.author))?.username %>
+                    </legend>
+                    <%= post.body %>
+                </fieldset>
+                <% }) } %>
+            </fieldset>
+            <% }) %>
+        </main>
+    </body>
 </html>

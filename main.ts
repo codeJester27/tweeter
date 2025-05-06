@@ -1,5 +1,10 @@
 import express, { json, Response, urlencoded } from "express";
-import { AuthManager, DatabaseConnection, UserFacingError } from "./db.js";
+import {
+    AuthManager,
+    DatabaseConnection,
+    intl,
+    UserFacingError,
+} from "./db.js";
 import cookieParser from "cookie-parser";
 import { ObjectId } from "mongodb";
 
@@ -30,24 +35,36 @@ app.set("view engine", "ejs");
 const DAY_MS = 1000 * 60 * 60 * 24;
 
 app.get("/", async (req, res) => {
-    if (!req.user) {
+    const user = req.user;
+    if (!user) {
+        res.render("login");
+        return;
+    }
+    const db = new DatabaseConnection();
+    const topics = await db.getSubscribedTopics(user._id);
+    res.render("home", { topics, user, intl, showPosts: true });
+});
+
+app.get("/all", async (req, res) => {
+    const user = req.user;
+    if (!user) {
         res.render("login");
         return;
     }
     const db = new DatabaseConnection();
     const topics = await db.getTopics();
-    res.render("home", { topics, user: req.user });
+    res.render("home", { topics, user, intl });
 });
 
 app.get("/createTopic", (req, res) => {
     const user = req.user;
     if (!user) {
         res.status(401);
-
+        res.end();
         return;
     }
 
-    res.render("create", { user: req.user });
+    res.render("create", { user });
 });
 
 app.post("/createTopic", async (req, res) => {
@@ -86,6 +103,7 @@ app.post("/logout", (req, res) => {
     }
     const auth = new AuthManager();
     auth.logout(req.cookies["ItsMe"]);
+    res.clearCookie("ItsMe");
     res.end();
 });
 
@@ -97,7 +115,8 @@ app.post("/logout", (req, res) => {
 })*/
 
 app.get("/topic/:topicId", async (req, res) => {
-    if (!req.user) {
+    const user = req.user;
+    if (!user) {
         res.redirect("/");
         return;
     }
@@ -113,7 +132,7 @@ app.get("/topic/:topicId", async (req, res) => {
         const db = new DatabaseConnection();
         const topic = await db.getTopic(new ObjectId(topicId), true);
         if (topic) {
-            res.render("topic", { topic });
+            res.render("topic", { user, topic, intl });
         } else {
             showErrorPage(res, "Topic not found");
             return;
@@ -147,7 +166,7 @@ app.post("/register", async (req, res) => {
             const token = await auth.register(username, password);
             res.cookie("ItsMe", token, { maxAge: DAY_MS });
             res.type("html");
-            res.end('<script>window.location = "/"</script>');
+            res.redirect("/");
         } catch (error) {
             showErrorPage(res, error);
         }
@@ -217,7 +236,7 @@ app.post("/topic/:topicId/post", async (req, res) => {
     } catch (error) {
         showErrorPage(res, error);
     }
-    res.end("Post success");
+    res.redirect(`/topic/${topicId}`);
 });
 
 function showErrorPage(res: Response, error: Error | string) {
