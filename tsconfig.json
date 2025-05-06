@@ -1,0 +1,10 @@
+{
+    "compilerOptions": {
+      "outDir": "./built",
+      "target": "ES2024",
+      "module": "Node16",
+      "moduleResolution": "node16",
+      "allowJs": false,
+    },
+    "files": ["main.ts", "custom.d.ts"]
+  }

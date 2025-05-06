@@ -1,4 +1,4 @@
- <!--
+<!--
 topics parameter
 {
  title: string;
@@ -19,6 +19,7 @@ topics parameter
   <body>
     <%- include('header') %>
     <main>
+        <p style="color:blue" >Hello <%= user.username %></p>
         <% topics.forEach(topic => { %>
         <fieldset id="post-<%= topic._id %>">
           <legend class ="topic-name"><%= topic.title %></legend>

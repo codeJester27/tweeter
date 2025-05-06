@@ -5,6 +5,7 @@
   "main": "main.js",
   "type": "module",
   "scripts": {
+    "start": "tsc && node built/main.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
@@ -25,5 +26,11 @@
     "ejs": "^3.1.10",
     "express": "^5.1.0",
     "mongodb": "^6.16.0"
+  },
+  "devDependencies": {
+    "@types/cookie-parser": "^1.4.8",
+    "@types/express": "^5.0.1",
+    "@types/node": "^22.15.11",
+    "typescript": "^5.8.3"
   }
 }

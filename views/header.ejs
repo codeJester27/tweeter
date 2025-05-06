@@ -1,3 +1,9 @@
 <header>
     <a href="/"><img src="/tweeter.png" class="logo" /></a>
+    <ul class="tabmenu">
+        <li><a href="/">subscribed</a></li>
+        <li><a href="/all">all</a></li>
+        <li><a href="/createTopic">create</a></li>
+    </ul>
+    <div class="auth-section"><% if (locals.user) { %> Welcome <%= user.username %> <a onclick=""></a><% } %></div>
 </header>

@@ -1,9 +1,10 @@
-import { MongoClient, ObjectId, Timestamp } from "mongodb";
+import { Db, Filter, MongoClient, ObjectId, Timestamp } from "mongodb";
+import { Topic, User } from "./types.js";
 const { createHash, randomBytes } = await import("node:crypto");
 
 // The uri string must be the connection string for the database (obtained on Atlas).
 const uri = `mongodb+srv://jtalbot:${encodeURIComponent(
-  process.env.MONGO_DB_PASSWORD
+  process.env.MONGO_DB_PASSWORD as string
 )}@mycluster.dwhh37z.mongodb.net/?retryWrites=true&w=majority&appName=MyCluster`;
 
 const intl = new Intl.DateTimeFormat("en-us", {
@@ -13,8 +14,8 @@ const intl = new Intl.DateTimeFormat("en-us", {
 });
 
 export class DatabaseConnection {
-  /** @type {DatabaseConnection} */
-  static #instance;
+  static #instance: DatabaseConnection;
+  db: Db;
 
   constructor() {
     if (DatabaseConnection.#instance) {
@@ -30,81 +31,79 @@ export class DatabaseConnection {
     this.db = client.db("tweeter");
   }
 
-  /**
-   * @param {ObjectId} id
-   */
-  getUser(id) {
-    const users = this.db.collection("users");
+  getUser(id: ObjectId) {
+    const users = this.db.collection<User>("users");
     return users.findOne({ _id: id });
   }
 
-  /**
-   * @param {import("mongodb").Filter<{username: string, passwordHash: string}> | undefined} filter
-   */
-  findUser(filter) {
-    const users = this.db.collection("users");
+  findUser(filter: Filter<User>) {
+    const users = this.db.collection<User>("users");
     return users.findOne(filter);
   }
 
   /**
    *
-   * @param {{username: string; passwordHash: string}} user
+   * @param user
    * @returns
    */
-  createUser(user) {
-    const users = this.db.collection("users");
+  createUser(user: User) {
+    const users = this.db.collection<User>("users");
     return users.insertOne(user);
   }
 
-  /**
-   *
-   * @returns {Promise<{
-   *  title: string;
-   *  lastBump: Date;
-   *  accessCount: number;
-   *  posts: {
-   *    author: ObjectId;
-   *    created: Date;
-   *    body: string;
-   *  }[]
-   * }[]>}
-   */
   getTopics() {
-    const topics = this.db.collection("topics");
+    const topics = this.db.collection<Topic>("topics");
     return topics.find().sort({ lastBump: -1 }).toArray();
   }
 
+  getSubscribedTopics(userId: ObjectId) {
+    const topics = this.db.collection<Topic>("topics");
+    return topics.find({ subscribers: userId }).sort({ lastBump: -1 }).toArray();
+  }
+
   /**
-   * @param {ObjectId} id ID of the topic.
-   * @param {boolean | undefined} isAccess Should increment accessCount of the topic.
-   * @returns {Promise<{
-   *  title: string;
-   *  lastBump: Date;
-   *  accessCount: number;
-   *  posts: {
-   *    author: ObjectId;
-   *    created: Date;
-   *    body: string;
-   *  }[];
-   *  subscribers: ObjectId[];
-   * } | null>}
+   * @param id ID of the topic.
+   * @param isAccess Should increment accessCount of the topic.
    */
-  async getTopic(id, isAccess = true) {
-    const topics = this.db.collection("topics");
-    const topic = await topics.findOne({ _id: id });
+  async getTopic(id: ObjectId, isAccess: boolean = true) {
+    const topics = this.db.collection<Topic>("topics");
+    const topic = await topics.aggregate([
+      {
+        '$match': {
+          '_id': id
+        }
+      }, {
+        '$set': {
+          'users': {
+            '$map': {
+              'input': '$posts', 
+              'in': '$$this.author'
+            }
+          }
+        }
+      }, {
+        '$lookup': {
+          'from': 'users', 
+          'localField': 'users', 
+          'foreignField': '_id', 
+          'as': 'users', 
+          'pipeline': [
+            {
+              '$unset': 'passwordHash'
+            }
+          ]
+        }
+      }
+    ]).next();
+    
     if (topic && isAccess) {
       topics.updateOne({ _id: id }, { $inc: { accessCount: 1 } });
     }
     return topic;
   }
 
-  /**
-   * @param {string} title The topic title
-   * @param {ObjectId} authorId The author's user ID.
-   * @param {string} body The body of the first post of the topic.
-   */
-  async createTopic(title, authorId, body) {
-    const topics = this.db.collection("topics");
+  async createTopic(title: string, authorId: ObjectId, body: string) {
+    const topics = this.db.collection<Topic>("topics");
     return topics.insertOne({
       title,
       lastBump: new Date(),
@@ -121,12 +120,12 @@ export class DatabaseConnection {
   }
 
   /**
-   * @param {ObjectId} topicId The post ID.
-   * @param {ObjectId} authorId The author's user ID.
-   * @param {string} body The body of the post.
+   * @param topicId The post ID.
+   * @param authorId The author's user ID.
+   * @param body The body of the post.
    */
-  async createPost(topicId, authorId, body) {
-    const topics = this.db.collection("topics");
+  async createPost(topicId: ObjectId, authorId: ObjectId, body: string) {
+    const topics = this.db.collection<Topic>("topics");
     await topics.updateOne(
       { _id: topicId },
       {
@@ -144,15 +143,27 @@ export class DatabaseConnection {
     );
   }
 
-  /**
-   * @param {ObjectId} topicId 
-   * @param {ObjectId} userId 
-   */
-  async subscribeToPost(topicId, userId) {
-    const topics = this.db.collection("topics")
-    const topic = topics.findOneAndUpdate()
+  async subscribeToTopic(topicId: ObjectId, userId: ObjectId) {
+    const topics = this.db.collection<Topic>("topics")
+    return topics.updateOne({ _id: topicId }, {
+      $push: {
+        subscribers: userId
+      }
+    })
+  }
+  
+  async unsubscribeFromTopic(topicId: ObjectId, userId: ObjectId) {
+    const topics = this.db.collection<Topic>("topics")
+    return topics.updateOne({ _id: topicId }, {
+      $pull: {
+        subscribers: userId
+      }
+    })
   }
 }
+
+
+  
 
 export class UserFacingError extends Error {}
 
@@ -172,12 +183,11 @@ export class AuthManager {
   }
 
   /**
-   * @param {string} username Username
-   * @param {string} password Password
-   * @returns {Promise<string>}
+   * @param username Username
+   * @param password Password
    * Auth token
    */
-  async login(username, password) {
+  async login(username: string, password: string) {
     const passwordHash = AuthManager.#pwhash(password);
 
     const db = new DatabaseConnection();
@@ -204,11 +214,7 @@ export class AuthManager {
     throw new UserFacingError("Incorrect username or password");
   }
 
-  /**
-   * @param {string} username Username
-   * @param {string} password Password
-   */
-  async register(username, password) {
+  async register(username: string, password: string) {
     const db = new DatabaseConnection();
     const existingUser = await db.findUser({ username });
 
@@ -223,10 +229,7 @@ export class AuthManager {
     return await this.login(username, password);
   }
 
-  /**
-   * @param {string} authToken
-   */
-  getUser(authToken) {
+  getUser(authToken: string) {
     const id = this.#tokenMap.get(authToken);
     if (id) {
       const db = new DatabaseConnection();
@@ -234,19 +237,16 @@ export class AuthManager {
     }
   }
 
-  /**
-   * @param {string} authToken
-   */
-  logout(authToken) {
+  logout(authToken: string) {
     return this.#tokenMap.delete(authToken);
   }
 
   /**
    * Makes a hash string from a password
-   * @param {string} password
-   * @returns {string} hash string
+   * @param password
+   * @returns hash string
    */
-  static #pwhash(password) {
+  static #pwhash(password: string) {
     const passwordHasher = createHash("sha512");
     passwordHasher.update(password, "utf8");
     return passwordHasher
@@ -256,10 +256,10 @@ export class AuthManager {
 
   /**
    * just generates a completely random 64 byte string
-   * @returns {Promise<string>} the "token" in question
+   * @returns the "token" in question
    */
   static #generateToken() {
-    return new Promise((resolve, reject) => {
+    return new Promise<string>((resolve, reject) => {
       randomBytes(64, (err, buf) => {
         if (err) reject(err);
         const token = buf.toString("base64");

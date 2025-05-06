@@ -6,12 +6,64 @@ body > .errorMessage {
 }
 
 body > header {
-    padding: 4px;
+    padding: 4px 4px 0 4px;
     background-color: #cee3f8;
+    font: normal x-small verdana,arial,helvetica,sans-serif;
+    position: relative;
+    border-bottom: 1px solid #5f99cf;
+}
+
+.auth-section {
+    position: absolute;
+    right: 0px;
+    bottom: 0px;
+    background-color: #EFF7FF;
+    padding: 4px;
+    line-height: 12px;
+    border-top-left-radius: 7px;
+    color: gray;
 }
 
 header .logo {
     height: 40px;
+}
+
+ol, ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.tabmenu {
+    list-style-type: none;
+    white-space: nowrap;
+    display: inline-block;
+    margin-top: 5px;
+    vertical-align: bottom;
+}
+
+.tabmenu li {
+    display: inline;
+    font-weight: bold;
+    margin: 0px 3px;
+}
+
+.tabmenu li.selected a {
+    color: orangered;
+    background-color: white;
+    border: 1px solid #5f99cf;
+    border-bottom: 1px solid white;
+    z-index: 100;
+}
+
+.tabmenu li a {
+    padding: 2px 6px 0 6px;
+    background-color: #eff7ff;
+}
+
+a {
+    text-decoration: none;
+    color: #369;
 }
 
 body > main {
@@ -20,12 +72,19 @@ body > main {
 
 body {
     margin: 0;
+    background-color: white;
+    z-index: 1;
+    min-height: 100%;
+}
+
+fieldset {
+    background-color: #d8e8f8;
 }
 
 button {
-    background-color: #ff0000;
-    color: white;
-    border: none;
+    background-color: #cee3f8;
+    color: black;
+    border: 1px solid #000000;
     padding: 10px 20px;
     font-size: 16px;
     font-weight: bold;
@@ -35,13 +94,9 @@ button {
 }
 
 .topic-timestamp {
-    background-color: #c45631;
-    color: white;
     border: none;
-    
 }
 
 .topic-name { 
-    background-color: #c45631;
-    color: white;
+    color: rgb(0, 0, 0);
 }
