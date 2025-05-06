@@ -6,6 +6,12 @@ const uri = `mongodb+srv://jtalbot:${encodeURIComponent(
   process.env.MONGO_DB_PASSWORD
 )}@mycluster.dwhh37z.mongodb.net/?retryWrites=true&w=majority&appName=MyCluster`;
 
+const intl = new Intl.DateTimeFormat("en-us", {
+  timeZone: "America/Chicago",
+  dateStyle: "full",
+  timeStyle: "full",
+});
+
 export class DatabaseConnection {
   /** @type {DatabaseConnection} */
   static #instance;
@@ -25,11 +31,11 @@ export class DatabaseConnection {
   }
 
   /**
-   * @param {ObjectId} id 
+   * @param {ObjectId} id
    */
   getUser(id) {
-    const users = this.db.collection("users")
-    return users.findOne({ _id: id })
+    const users = this.db.collection("users");
+    return users.findOne({ _id: id });
   }
 
   /**
@@ -41,9 +47,9 @@ export class DatabaseConnection {
   }
 
   /**
-   * 
-   * @param {{username: string; passwordHash: string}} user 
-   * @returns 
+   *
+   * @param {{username: string; passwordHash: string}} user
+   * @returns
    */
   createUser(user) {
     const users = this.db.collection("users");
@@ -51,7 +57,7 @@ export class DatabaseConnection {
   }
 
   /**
-   * 
+   *
    * @returns {Promise<{
    *  title: string;
    *  lastBump: Date;
@@ -65,7 +71,7 @@ export class DatabaseConnection {
    */
   getTopics() {
     const topics = this.db.collection("topics");
-    return topics.find().sort({ lastBump: -1 }).toArray()
+    return topics.find().sort({ lastBump: -1 }).toArray();
   }
 
   /**
@@ -73,23 +79,45 @@ export class DatabaseConnection {
    * @param {boolean | undefined} isAccess Should increment accessCount of the topic.
    * @returns {Promise<{
    *  title: string;
-  *  lastBump: Date;
-  *  accessCount: number;
-  *  posts: {
-  *    author: ObjectId;
-  *    created: Date;
-  *    body: string;
-  *  }[];
-  *  subscribers: ObjectId[];
-  * } | null>}
+   *  lastBump: Date;
+   *  accessCount: number;
+   *  posts: {
+   *    author: ObjectId;
+   *    created: Date;
+   *    body: string;
+   *  }[];
+   *  subscribers: ObjectId[];
+   * } | null>}
    */
   async getTopic(id, isAccess = true) {
     const topics = this.db.collection("topics");
     const topic = await topics.findOne({ _id: id });
     if (topic && isAccess) {
-      topics.updateOne({ _id: id }, { $inc: { accessCount: 1 }});
+      topics.updateOne({ _id: id }, { $inc: { accessCount: 1 } });
     }
     return topic;
+  }
+
+  /**
+   * @param {string} title The topic title
+   * @param {ObjectId} authorId The author's user ID.
+   * @param {string} body The body of the first post of the topic.
+   */
+  async createTopic(title, authorId, body) {
+    const topics = this.db.collection("topics");
+    return topics.insertOne({
+      title,
+      lastBump: new Date(),
+      accessCount: 0,
+      posts: [
+        {
+          author: authorId,
+          created: new Date(),
+          body,
+        },
+      ],
+      subscribers: [],
+    });
   }
 
   /**
@@ -99,11 +127,30 @@ export class DatabaseConnection {
    */
   async createPost(topicId, authorId, body) {
     const topics = this.db.collection("topics");
-    await topics.updateOne({ _id: topicId}, {$push: {posts: {
-      author: authorId,
-      created: new Date(),
-      body
-    }}});
+    await topics.updateOne(
+      { _id: topicId },
+      {
+        $set: {
+          lastBump: new Date(),
+        },
+        $push: {
+          posts: {
+            author: authorId,
+            created: new Date(),
+            body,
+          },
+        },
+      }
+    );
+  }
+
+  /**
+   * @param {ObjectId} topicId 
+   * @param {ObjectId} userId 
+   */
+  async subscribeToPost(topicId, userId) {
+    const topics = this.db.collection("topics")
+    const topic = topics.findOneAndUpdate()
   }
 }
 
@@ -163,13 +210,16 @@ export class AuthManager {
    */
   async register(username, password) {
     const db = new DatabaseConnection();
-    const existingUser = db.findUser({ username });
+    const existingUser = await db.findUser({ username });
 
     if (existingUser) {
       throw new UserFacingError("User already exists with this username");
     }
 
-    await db.createUser({ username, passwordHash: AuthManager.#pwhash(password) });
+    await db.createUser({
+      username,
+      passwordHash: AuthManager.#pwhash(password),
+    });
     return await this.login(username, password);
   }
 
@@ -177,29 +227,31 @@ export class AuthManager {
    * @param {string} authToken
    */
   getUser(authToken) {
-    const id = this.#tokenMap.get(authToken)
+    const id = this.#tokenMap.get(authToken);
     if (id) {
-      const db = new DatabaseConnection()
+      const db = new DatabaseConnection();
       return db.getUser(id);
     }
   }
 
   /**
-   * @param {string} authToken 
+   * @param {string} authToken
    */
   logout(authToken) {
-    return this.#tokenMap.delete(authToken)
+    return this.#tokenMap.delete(authToken);
   }
 
   /**
    * Makes a hash string from a password
-   * @param {string} password 
+   * @param {string} password
    * @returns {string} hash string
    */
   static #pwhash(password) {
-    const passwordHasher = createHash("sha512")
+    const passwordHasher = createHash("sha512");
     passwordHasher.update(password, "utf8");
-    return passwordHasher.digest().reduce((prev, cur) => prev + cur.toString(16), "");
+    return passwordHasher
+      .digest()
+      .reduce((prev, cur) => prev + cur.toString(16), "");
   }
 
   /**
@@ -212,7 +264,7 @@ export class AuthManager {
         if (err) reject(err);
         const token = buf.toString("base64");
         resolve(token);
-      })
-    })
+      });
+    });
   }
 }

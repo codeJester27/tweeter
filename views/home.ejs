@@ -1,14 +1,36 @@
+ <!--
+topics parameter
+{
+ title: string;
+ lastBump: Date;
+ accessCount: number;
+ posts: {
+   author: ObjectId;
+   created: Date;
+   body: string;
+ }[];
+ subscribers: ObjectId[];
+}[]
+-->
+
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>tweeter</title>
-</head>
-<body>
-    <p>Hello <%= user.username %></p>
-    <% topics.forEach(topic => { %>
-        <code><%= JSON.stringify(topic, undefined, 2) %></code>
-    <% }) %>
-</body>
+    <%- include('head') %>
+  <body>
+    <%- include('header') %>
+    <main>
+        <p style="color:blue" >Hello <%= user.username %></p>
+        <% topics.forEach(topic => { %>
+        <fieldset id="post-<%= topic._id %>">
+          <legend class ="topic-name"><%= topic.title %></legend>
+          <div class="topic-timestamp">Last Bump: <%= topic.lastBump %></div>
+          <div class="access-count">Access Count: <%= topic.accessCount %></div>
+          <a href="/topic/<%= topic._id %>">Go to topic</a>
+        </fieldset>
+        <% }) %>
+    </main>
+
+
+    
+  </body>
 </html>

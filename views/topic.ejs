@@ -1,0 +1,27 @@
+<!--
+topic parameter
+{
+ title: string;
+ lastBump: Date;
+ accessCount: number;
+ posts: {
+   author: ObjectId;
+   created: Date;
+   body: string;
+ }[];
+ subscribers: ObjectId[];
+}
+-->
+
+<!DOCTYPE html>
+<html lang="en">
+    <%- include('head') %>
+    <body>
+        <%- include('header') %>
+        <h1><%= topic.title %></h1>
+        <h1><%= topic.lastBump %></h1>
+        <h1><%= topic.accessCount %></h1>
+        <button>Subscribe</button>
+        <button>Create Post</button>
+    </body>
+</html>
