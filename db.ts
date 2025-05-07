@@ -1,5 +1,6 @@
-import { Db, Filter, MongoClient, ObjectId, Timestamp } from "mongodb";
-import { Topic, User } from "./types.js";
+import { Db, Filter, MongoClient, ObjectId, Timestamp, WithId } from "mongodb";
+import { Topic, TopicWithUsers, User } from "./types.js";
+import { WebSocket } from "ws";
 const { createHash, randomBytes } = await import("node:crypto");
 
 // The uri string must be the connection string for the database (obtained on Atlas).
@@ -12,6 +13,66 @@ export const intl = new Intl.DateTimeFormat("en-us", {
     dateStyle: "full",
     timeStyle: "full",
 });
+
+export class TopicSubscriptionService {
+    static #instance: TopicSubscriptionService;
+    subscriptions: Map<string, TopicSubscription>;
+
+    constructor() {
+        if (TopicSubscriptionService.#instance) {
+            return TopicSubscriptionService.#instance;
+        }
+        this.subscriptions = new Map();
+        TopicSubscriptionService.#instance = this;
+    }
+
+    registerToTopic(topicId: string, subscriber: WebSocket) {
+        let sub = this.subscriptions.get(topicId);
+        if (!sub) {
+            sub = new TopicSubscription();
+            this.subscriptions.set(topicId, sub);
+        }
+        sub.register(subscriber);
+    }
+
+    notifyTopic(topic: WithId<Topic>) {
+        const sub = this.subscriptions.get(topic._id.toString("hex"));
+        if (sub) {
+            sub.notify(topic);
+        }
+    }
+
+    async notifyTopicById(topicId: ObjectId) {
+        const db = new DatabaseConnection();
+        const topic = await db.getTopic(topicId, false);
+        this.notifyTopic(topic);
+    }
+}
+
+export class TopicSubscription {
+    subscribers: Set<WebSocket>
+
+    constructor() {
+        this.subscribers = new Set();
+    }
+
+    register(subscriber: WebSocket) {
+        this.subscribers.add(subscriber);
+
+        subscriber.on("close", () => {
+            this.subscribers.delete(subscriber);
+        })
+    }
+
+    notify(topic: WithId<Topic>) {
+        const subs = [...this.subscribers.values()]
+        subs.forEach(sub => {
+            if (sub.readyState === sub.OPEN) {
+                sub.send(JSON.stringify(topic), { binary: false, compress: true });
+            }
+        });
+    }
+}
 
 export class DatabaseConnection {
     static #instance: DatabaseConnection;
@@ -99,7 +160,7 @@ export class DatabaseConnection {
     async getTopic(id: ObjectId, isAccess: boolean = true) {
         const topics = this.db.collection<Topic>("topics");
         const topic = await topics
-            .aggregate([
+            .aggregate<WithId<TopicWithUsers>>([
                 {
                     $match: {
                         _id: id,
@@ -174,8 +235,10 @@ export class DatabaseConnection {
                         body,
                     },
                 },
-            }
-        );
+            });
+        
+        const subService = new TopicSubscriptionService();
+        subService.notifyTopicById(topicId);
     }
 
     async subscribeToTopic(topicId: ObjectId, userId: ObjectId) {
