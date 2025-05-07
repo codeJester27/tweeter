@@ -26,12 +26,16 @@
     "cookie-parser": "^1.4.7",
     "ejs": "^3.1.10",
     "express": "^5.1.0",
-    "mongodb": "^6.16.0"
+    "express-ws": "^5.0.2",
+    "mongodb": "^6.16.0",
+    "ws": "^8.18.2"
   },
   "devDependencies": {
     "@types/cookie-parser": "^1.4.8",
     "@types/express": "^5.0.1",
+    "@types/express-ws": "^3.0.5",
     "@types/node": "^22.15.11",
+    "@types/ws": "^8.18.1",
     "typescript": "^5.8.3"
   }
 }

@@ -1,14 +1,18 @@
 import express, { json, Response, urlencoded } from "express";
+import expressWs from "express-ws";
 import {
     AuthManager,
     DatabaseConnection,
     intl,
+    TopicSubscriptionService,
     UserFacingError,
 } from "./db.js";
 import cookieParser from "cookie-parser";
 import { ObjectId } from "mongodb";
+import { WebSocket } from "ws";
 
-const app = express();
+const app = expressWs(express()).app;
+
 const port = process.env.PORT || 3000;
 app.listen(port);
 console.log("Server started at http://localhost:" + port);
@@ -33,6 +37,8 @@ app.set("views", "./views");
 app.set("view engine", "ejs");
 
 const DAY_MS = 1000 * 60 * 60 * 24;
+
+
 
 app.get("/", async (req, res) => {
     const user = req.user;
@@ -106,6 +112,36 @@ app.post("/logout", (req, res) => {
     res.clearCookie("ItsMe");
     res.end();
 });
+
+const objectIdRegex = /^[0-9a-f]{24}$/i;
+
+app.ws("/topic", (ws) => {
+    ws.once("message", (data, isBinary) => {
+        const text = data.toString('utf8')
+        if (isBinary) {
+            ws.close();
+            return;
+        }
+
+        if (objectIdRegex.test(text)) {
+            const subService = new TopicSubscriptionService();
+            subService.registerToTopic(text, ws);
+            return;
+        }
+        
+        try {
+            const array = JSON.parse(text);
+            if (array instanceof Array && array.every(x => typeof x === "string" && objectIdRegex.test(x))) {
+                const subService = new TopicSubscriptionService();
+                array.forEach(topicId => {
+                    subService.registerToTopic(topicId, ws);
+                });
+                return;
+            }
+        } catch (_) {}
+        ws.close();
+    })
+})
 
 /*app.delete("/topic/:topicId", async (req,res) => {
   if (!req.user) {

@@ -16,7 +16,77 @@ topics parameter
 <!DOCTYPE html>
 <html lang="en">
     <head>
-        <%- include('head') %>
+        <%- include('head') %> <% if (locals.showPosts) { %>
+        <script>
+            const intl = new Intl.DateTimeFormat("en-us", {
+                timeZone: "America/Chicago",
+                dateStyle: "full",
+                timeStyle: "full",
+            });
+
+            function updateTopic(topic) {
+                const topicElement = document.querySelector(
+                    `#topic-${topic._id}`
+                );
+                if (!topicElement) {
+                    return;
+                }
+
+                const lastBumpElement =
+                    topicElement.querySelector(".topic-last-bump");
+                const viewsElement = topicElement.querySelector(
+                    ".topic-access-count"
+                );
+                const postsElement = topicElement.querySelector(".topic-posts");
+
+                lastBumpElement.textContent = intl.format(
+                    new Date(topic.lastBump)
+                );
+                viewsElement.textContent = topic.accessCount;
+                postsElement.replaceChildren(
+                    ...topic.posts.toSorted((a, b) => a.created - b.created)
+                        .slice(-2)
+                        .map((post) => {
+                            const fieldset = document.createElement("fieldset");
+                            const legend = document.createElement("legend");
+                            legend.textContent = topic.users.find(
+                                (x) => x._id === post.author
+                            )?.username;
+                            fieldset.append(legend, post.body);
+                            return fieldset;
+                        })
+                );
+            }
+
+            function subscribeWs(topicId) {
+                const ws = new WebSocket("/topic");
+                ws.addEventListener("open", () => {
+                    ws.send(topicId);
+
+                    ws.addEventListener("message", (e) => {
+                        const topic = JSON.parse(e.data);
+                        updateTopic(topic);
+                    });
+                });
+            }
+
+            const topicIdRegex = /^topic-([0-9a-f]{24})$/i;
+
+            document.addEventListener("DOMContentLoaded", () => {
+                const topicElements = document.querySelectorAll(
+                    "fieldset[id^=topic-]"
+                );
+                if (topicElements.length > 0) {
+                    const topicIdString = JSON.stringify(
+                        [...topicElements]
+                            .map((x) => topicIdRegex.exec(x.id)?.[1])
+                            .filter((x) => x !== null)
+                    );
+                    subscribeWs(topicIdString);
+                }
+            });
+        </script>
+        <% } %>
     </head>
     <body>
         <%- include('header') %>
@@ -24,27 +94,36 @@ topics parameter
             <% if (!topics.length) { %>
             <p>No subscribed topics :(</p>
             <% } %> <% topics.forEach(topic => { %>
-            <fieldset id="post-<%= topic._id %>">
+            <fieldset id="topic-<%= topic._id %>">
                 <legend class="topic-name"><%= topic.title %></legend>
                 <div class="topic-timestamp">
-                    Last Bump: <%= intl.format(topic.lastBump) %>
+                    Last Bump:
+                    <span class="topic-last-bump"
+                        ><%= intl.format(topic.lastBump) %></span
+                    >
                 </div>
                 <div class="access-count">
-                    Access Count: <%= topic.accessCount %>
+                    Access Count:
+                    <span class="topic-access-count"
+                        ><%= topic.accessCount %></span
+                    >
                 </div>
                 <a href="/topic/<%= topic._id %>">Go to topic</a>
                 <% if(locals.showPosts) { %>
-                  <hr />
-                  Recent Posts
-                <% topic.posts.toSorted((a, b) => a.created - b.created).slice(-2).forEach(post => { %>
-                <fieldset>
-                    <legend>
-                        <%= topic.users.find(x =>
-                        x._id.equals(post.author))?.username %>
-                    </legend>
-                    <%= post.body %>
-                </fieldset>
-                <% }) } %>
+                <hr />
+                Recent Posts
+                <div class="topic-posts">
+                    <% topic.posts.toSorted((a, b) => a.created -
+                    b.created).slice(-2).forEach(post => { %>
+                    <fieldset>
+                        <legend>
+                            <%= topic.users.find(x =>
+                            x._id.equals(post.author))?.username %>
+                        </legend>
+                        <%= post.body %>
+                    </fieldset>
+                    <% }) } %>
+                </div>
             </fieldset>
             <% }) %>
         </main>

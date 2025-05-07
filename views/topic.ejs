@@ -15,44 +15,112 @@ topic parameter
 
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <%- include('head') %>
-    <script>
-        function subscribe(postId) {
-            fetch(`/subscribe/${postId}`, {
-                method: "POST"
-            }).then(() => {
-                location.reload();
-            }).catch(alert);
-        }
+    <head>
+        <%- include('head') %>
+        <script>
+            const intl = new Intl.DateTimeFormat("en-us", {
+                timeZone: "America/Chicago",
+                dateStyle: "full",
+                timeStyle: "full",
+            });
 
-        function unsubscribe(postId) {
-            fetch(`/unsubscribe/${postId}`, {
-                method: "POST"
-            }).then(() => {
-                location.reload();
-            }).catch(alert);
-        }
-    </script>
-</head>
+            function subscribe(postId) {
+                fetch(`/subscribe/${postId}`, {
+                    method: "POST",
+                })
+                    .then(() => {
+                        location.reload();
+                    })
+                    .catch(alert);
+            }
+
+            function unsubscribe(postId) {
+                fetch(`/unsubscribe/${postId}`, {
+                    method: "POST",
+                })
+                    .then(() => {
+                        location.reload();
+                    })
+                    .catch(alert);
+            }
+
+            function updateTopic(topic) {
+                const lastBumpElement =
+                    document.querySelector("#topic-last-bump");
+                const viewsElement = document.querySelector("#topic-views");
+                const postsElement = document.querySelector("#topic-posts");
+
+                lastBumpElement.textContent = intl.format(
+                    new Date(topic.lastBump)
+                );
+                viewsElement.textContent = topic.accessCount;
+                postsElement.replaceChildren(
+                    ...topic.posts.map((post) => {
+                        const fieldset = document.createElement("fieldset");
+                        const legend = document.createElement("legend");
+                        legend.textContent = topic.users.find(
+                            (x) => x._id === post.author
+                        )?.username;
+                        fieldset.append(legend, post.body);
+                        return fieldset;
+                    })
+                );
+            }
+
+            function subscribeWs(topicId) {
+                const ws = new WebSocket("/topic");
+                ws.addEventListener("open", () => {
+                    ws.send(topicId);
+
+                    ws.addEventListener("message", (e) => {
+                        const topic = JSON.parse(e.data);
+                        updateTopic(topic);
+                    });
+                });
+            }
+
+            document.addEventListener("DOMContentLoaded", () => {
+                subscribeWs("<%= topic._id %>");
+            });
+        </script>
+    </head>
     <body>
         <%- include('header') %>
         <div>
-            <h1><%= topic.title %>
-            <% if (!topic.subscribers.find(x => user._id.equals(x))) { %> <button type="submit" onclick='subscribe("<%= topic._id %>")''>Subscribe</button>
-            <% } else { %> <button type="submit" onclick='unsubscribe("<%= topic._id %>")''>Unsubscribe</button> <% } %>
+            <h1>
+                <%= topic.title %> <% if (!topic.subscribers.find(x =>
+                user._id.equals(x))) { %>
+                <button type="submit" onclick='subscribe("<%= topic._id %>")'>
+                    Subscribe
+                </button>
+                <% } else { %>
+                <button type="submit" onclick='unsubscribe("<%= topic._id %>")'>
+                    Unsubscribe
+                </button>
+                <% } %>
             </h1>
         </div>
-        <p>Time created: <%= intl.format(topic.lastBump) %></p>
-        <p>Views: <%= topic.accessCount %></p>
-        <% topic.posts.forEach(post => { %>
-         <fieldset>
-            <legend><%= topic.users.find(x => x._id.equals(post.author))?.username %></legend>
-            <%= post.body %>
-         </fieldset>
-        <% }) %>
-        
-        <form action="/topic/<%= topic._id %>/post" method="post">
+        <p>
+            Time created:
+            <span id="topic-last-bump"><%= intl.format(topic.lastBump) %></span>
+        </p>
+        <p>Views: <span id="topic-views"><%= topic.accessCount %></span></p>
+        <div id="topic-posts">
+            <% topic.posts.forEach(post => { %>
+            <fieldset>
+                <legend>
+                    <%= topic.users.find(x =>
+                    x._id.equals(post.author))?.username %>
+                </legend>
+                <%= post.body %>
+            </fieldset>
+            <% }) %>
+        </div>
+        <form
+            id="new-post-form"
+            action="/topic/<%= topic._id %>/post"
+            method="post"
+        >
             <div>
                 <label>Make a Post</label>
                 <button type="submit">Send</button>
@@ -61,6 +129,5 @@ topic parameter
                 <textarea name="body"></textarea>
             </div>
         </form>
-        
     </body>
 </html>
